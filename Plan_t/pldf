@@ -1,0 +1,147 @@
+#include <Wire.h> // Include the Wire library for I2C communication
+
+// Pin definitions
+const int SOIL_MOISTURE_SENSOR_PIN = A0;
+const int LUMINOSITY_SENSOR_PIN = A1;
+const int HUMIDITY_SENSOR_PIN = A2;
+const int CO2_SENSOR_PIN = A3;
+const int CO_SENSOR_PIN = A4;
+const int WATER_PUMP_PIN = D1;
+const int FERTILIZER_PUMP_PIN = D2;
+const int DHT_PIN = D3;
+
+// Thresholds for each plant variable (customize according to the plant)
+const float OPTIMAL_ENVIRONMENT_TEMPERATURE = 25.0;
+const float OPTIMAL_AIR_HUMIDITY = 60.0;
+const float OPTIMAL_SOIL_CONDUCTIVITY = 0.5;
+const float OPTIMAL_LIGHT = 500.0;
+const float OPTIMAL_SOIL_MOISTURE = 50.0;
+
+// Pumps timings
+const unsigned long WATER_PUMP_DURATION = 10000; // 10 seconds
+const unsigned long FERTILIZER_PUMP_DURATION = 5000; // 5 seconds
+
+// Initialize DHT sensor
+#include <DHT.h>
+#define DHTTYPE DHT22 // DHT22 or DHT11 // Define DHT sensor type
+DHT dht(DHT_PIN, DHTTYPE);
+
+void setup() {
+// Initialize serial communication
+Serial.begin(9600);
+
+// Initialize the pumps as output and turn them off
+pinMode(WATER_PUMP_PIN, OUTPUT);
+digitalWrite(WATER_PUMP_PIN, LOW);
+pinMode(FERTILIZER_PUMP_PIN, OUTPUT);
+digitalWrite(FERTILIZER_PUMP_PIN, LOW);
+
+// Initialize the DHT sensor
+dht.begin();
+}
+
+void loop() {
+// Read sensor values
+float soilMoisture = readSoilMoisture();
+float luminosity = readLuminosity();
+float humidity = readHumidity();
+float temperature = readTemperature();
+float co2 = readCO2();
+float co = readCO();
+
+// Take care of the plant based on the known variables
+careForPlant(soilMoisture, luminosity, humidity, temperature, co2, co);
+
+// Wait 5 minutes before taking the next reading
+delay(5 * 60 * 1000);
+}
+
+float readSoilMoisture() {
+// Read soil moisture sensor value
+int rawValue = analogRead(SOIL_MOISTURE_SENSOR_PIN);
+// Convert the raw value to a percentage
+float percentage = (float)rawValue / 1023.0 * 100.0;
+return percentage;
+}
+
+float readLuminosity() {
+// Read luminosity sensor value
+int rawValue = analogRead(LUMINOSITY_SENSOR_PIN);
+// Convert the raw value to a more meaningful unit (lux)
+float lux = (float)rawValue / 1023.0 * 100.0;
+return lux;
+}
+
+float readHumidity() {
+// Read humidity from DHT sensor
+float humidity = dht.readHumidity();
+return humidity;
+}
+
+float readTemperature() {
+// Read temperature from DHT sensor
+float temperature = dht.readTemperature();
+return temperature;
+}
+
+float readCO2() {
+// Read CO2 sensor value
+int rawValue = analogRead(CO2_SENSOR_PIN);
+// Convert the raw value to a more meaningful unit (ppm)
+float ppm = (float)rawValue / 1023.0 * 1000.0;
+return ppm;
+}
+
+float readCO() {
+// Read CO sensor value
+int rawValue = analogRead(CO_SENSOR_PIN);
+// Convert the raw value to a more meaningful unit (ppm)
+float ppm = (float)rawValue / 1023.0 * 1000.0;
+return ppm;
+}
+
+void careForPlant(float soilMoisture, float luminosity, float humidity, float temperature, float co2, float co) {
+// Water the plant if soil moisture is below the optimal level
+if (soilMoisture < OPTIMAL_SOIL_MOISTURE) {
+digitalWrite(WATER_PUMP_PIN, HIGH);
+delay(WATER_PUMP_DURATION);
+digitalWrite(WATER_PUMP_PIN, LOW);
+}
+
+// Provide fertilizer if soil conductivity is below the optimal level
+if (readSoilConductivity() < OPTIMAL_SOIL_CONDUCTIVITY) {
+digitalWrite(FERTILIZER_PUMP_PIN, HIGH);
+delay(FERTILIZER_PUMP_DURATION);
+digitalWrite(FERTILIZER_PUMP_PIN, LOW);
+}
+
+// Display sensor values and current plant status
+Serial.println("Sensor Values:");
+Serial.print("Soil Moisture: ");
+Serial.print(soilMoisture);
+Serial.print("% | Luminosity: ");
+Serial.print(luminosity);
+Serial.print(" lux | Humidity: ");
+Serial.print(humidity);
+Serial.print("% | Temperature: ");
+Serial.print(temperature);
+Serial.print(" C | CO2: ");
+Serial.print(co2);
+Serial.print(" ppm | CO: ");
+Serial.print(co);
+Serial.println(" ppm");
+
+// Check for potentially dangerous levels of CO
+if (co > 50) {
+Serial.println("Warning: High levels of carbon monoxide detected. Please ensure proper ventilation.");
+}
+}
+
+float readSoilConductivity() {
+// This function assumes you have a soil conductivity sensor connected to your setup.
+// You'll need to replace this implementation with the appropriate code for your specific sensor.
+// Refer to your sensor's documentation for the correct implementation.
+// Here, we return a placeholder value as an example.
+return 0.5;
+}
+
